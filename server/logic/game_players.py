@@ -43,3 +43,13 @@ class GamePlayers:
         self.pcount = pcount
         p1 = lobby["p1"]
         self.p1 = GamePlayer(p1)
+        p2 = lobby["p2"]
+        self.p2 = GamePlayer(p2)
+        p3 = lobby["p3"]
+        self.p3 = GamePlayer(p3)
+        p4 = lobby["p4"]
+        self.p4 = GamePlayer(p4)
+        p5 = lobby["p5"]
+        self.p5 = GamePlayer(p5)
+        p6 = lobby["p6"]
+        self.p6 = GamePlayer(p6)
