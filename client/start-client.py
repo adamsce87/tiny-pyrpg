@@ -109,15 +109,17 @@ class LobbyMenu(QMainWindow):
             labels["profession"] = self.ui.lbl_p6_profession
             labels["profession_dsc"] = self.ui.lbl_p6_profession_dsc
             labels["ready"] = self.ui.lbl_p6_ready
+        return labels
 
     def _update_players(self, game):
-        lobby = game["lobby"]
-        for number, player in lobby.items():
-            labels = self._get_player_labels(number)
-            labels["name"].setText(player["name"] if not player["name"] == "" else "Empty")
-            labels["profession"].setText(player["profession"] if not player["profession"] == "" else "None")
-            labels["profession_dsc"].setText(player["profession_dsc"])
-            labels["ready"].setText("Yes" if player["ready"] == True else "No")
+        lobby = game
+        for player in lobby.keys():
+        #for player in lobby["lobby"].keys():
+            labels = self._get_player_labels(player)
+            labels["name"].setText(lobby[player]["name"] if not lobby[player]["name"] == "" else "Empty")
+            labels["profession"].setText(lobby[player]["profession"] if not lobby[player]["profession"] == "" else "None")
+            labels["profession_dsc"].setText(lobby[player]["profession_description"])
+            labels["ready"].setText("Yes" if lobby[player]["ready"] == True else "No")
 
     def _set_profession(self, prof):
         if self.parent.player["profession"] != prof:
@@ -184,7 +186,7 @@ class ClientSocket:
         data = {}
         data["request"] = "JOIN LOBBY"
         data["data"] = self.parent.username
-        data = json.dumps[data].encode()
+        data = json.dumps(data).encode()
         self.sock.sendall(data)
 
         response = self.sock.recv(2048)
@@ -193,7 +195,7 @@ class ClientSocket:
         response = response["response"]
 
         if response == "ERROR":
-            if data = "LOBBY FULL":
+            if data == "LOBBY FULL":
                 emsg = QErrorMessage()
                 emsg.setWindowTitle("Tiny-PyRPG | Error: Lobby full")
                 emsg.showMessage("Error: the lobby you tried to join is full. Exiting.")
@@ -209,12 +211,32 @@ class ClientSocket:
                 self.sock.close()
                 self.parent.go_to_main_menu()
                 return
+            elif data == "GAME STARTED":
+                emsg = QErrorMessage()
+                emsg.setWindowTitle("Tiny-PyRPG | Error: Game Started")
+                emsg.showMessage("Error: the lobby you tried to join has already begun a match. Exiting.")
+                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.close()
+                self.parent.go_to_main_menu()
+                return
         elif response == "JOIN ACCEPT":
             pnum = data["player-number"]
             lobby = data["lobby"]
+            if pnum == 1:
+                self.parent.player = lobby["p1"]
+            elif pnum == 2:
+                self.parent.player = lobby["p2"]
+            elif pnum == 3:
+                self.parent.player = lobby["p3"]
+            elif pnum == 4:
+                self.parent.player = lobby["p4"]
+            elif pnum == 5:
+                self.parent.player = lobby["p5"]
+            elif pnum == 6:
+                self.parent.player = lobby["p6"]
             
-            
-        self.parent.response_queue.put(("UPDATE GAME", game))
+                        
+        self.parent.response_queue.put(("UPDATE GAME", lobby))
 
         while True:
             command = self.parent.command_queue.get()
@@ -226,15 +248,17 @@ class ClientSocket:
                 self.sock.sendall(data)
                 response = self.sock.recv(2048)
                 response = json.loads(response.decode())
-                game = response["game"]
+                game = response["data"]
                 response = response["response"]
-                if response != "VALID":
+                if response != "LOBBY DATA":
                     emsg = QErrorMessage()
                     emsg.setWindowTitle("Tiny-PyRPG | Error: Command Invalid")
                     emsg.showMessage("Error: the action you just tried to do is broken. Please contact the developer.")
                     continue
+                
                 self.parent.window._update_players(game)
                 print("Updating profession to {}".format(self.parent.player["profession"]))
+                
             elif command == "UPDATE READY":
                 data = {}
                 data["request"] = "UPDATE READY"
@@ -243,15 +267,16 @@ class ClientSocket:
                 self.sock.sendall(data)
                 response = self.sock.recv(2048)
                 response = json.loads(response.decode())
-                game = response["game"]
+                game = response["data"]
                 response = response["response"]
-                if response != "VALID":
+                if response != "LOBBY DATA":
                     emsg = QErrorMessage()
                     emsg.setWindowTitle("Tiny-PyRPG | Error: Command Invalid")
                     emsg.showMessage("Error: the action you just tried to do is broken. Please contact the developer.")
                     continue
                 self.parent.window._update_players(game)
                 print("Ready state is now {}".format(self.parent.ready))
+                
             elif command == "TRY START":
                 print("Requesting game start")
                 data = {}
@@ -276,6 +301,7 @@ class ClientSocket:
                     emsg.setWindowTitle("Tiny-PyRPG | Error: Command Invalid")
                     emsg.showMessage("Error: the action you just tried to do is broken. Please contact the developer.")
                     continue
+                
             elif command == "EXIT":
                 data = {}
                 data["request"] = "EXIT"
